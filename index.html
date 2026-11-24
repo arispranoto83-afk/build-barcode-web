@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="URL2Code PWA" />
+  <meta name="description" content="Aplikasi PWA Full-Stack konverter halaman web menjadi QR Code dan Barcode 1D siap scan kamera HP." />
+  <title>URL2Code PWA — Konverter Halaman Web ke Barcode &amp; QR Code</title>
+  <link id="faviconLink" rel="icon" type="image/png" href="/icons/icon-192.png" />
+  <link id="appleTouchIconLink" rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link id="pwaManifestLink" rel="manifest" href="/manifest.webmanifest" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .canvas-shadow {
+      box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.14), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    }
+    .icon-glow {
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 8px 20px -4px rgba(56, 189, 248, 0.35), 0 4px 12px -2px rgba(139, 92, 246, 0.3);
+    }
+    .scan-frame {
+      position: relative;
+    }
+    .scan-corner {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-color: #2563eb;
+      border-style: solid;
+      pointer-events: none;
+    }
+    .scan-tl { top: -8px; left: -8px; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
+    .scan-tr { top: -8px; right: -8px; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
+    .scan-bl { bottom: -8px; left: -8px; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
+    .scan-br { bottom: -8px; right: -8px; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      appearance: none;
+      border: none;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+    input[type="color"]::-webkit-color-swatch {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .toast-enter {
+      animation: toastIn 0.22s ease-out forwards;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen antialiased">
+  <!-- Header -->
+  <header class="bg-slate-950 text-white border-b border-slate-800 sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <img
+          id="appBrandIcon"
+          src="/icons/icon-192.png"
+          alt="Ikon Aplikasi URL2Code PWA"
+          class="w-10 h-10 rounded-xl object-cover shrink-0 icon-glow"
+        />
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold text-white truncate">URL2Code</h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+              PWA Full-Stack
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 truncate">Ubah tautan web jadi kode siap scan kamera HP</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="connectionPill" class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-cyan-300 border border-slate-700">
+          <span id="connectionDot" class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          <span id="connectionText">Mode Lokal PWA</span>
+        </span>
+        <button id="btnInstallPwa" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 rounded-lg transition shadow-sm">
+          <i data-lucide="smartphone-charging" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Instal PWA</span>
+        </button>
+        <button id="btnFullscreen" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition">
+          <i data-lucide="maximize-2" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Perbesar Scan</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Left Column: Input & Controls -->
+      <section class="lg:col-span-7 space-y-5">
+        <!-- URL Input Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <label for="urlInput" class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="link" class="w-4 h-4 text-blue-600"></i>
+              Alamat Halaman Web (URL)
+            </label>
+            <button id="btnClearUrl" type="button" class="text-xs font-medium text-slate-500 hover:text-rose-600 transition">
+              Hapus
+            </button>
+          </div>
+
+          <div class="relative">
+            <input
+              id="urlInput"
+              type="text"
+              value="https://www.google.com"
+              placeholder="Contoh: https://tokopedia.com atau wikipedia.org"
+              autocomplete="off"
+              spellcheck="false"
+              class="w-full rounded-xl border border-slate-300 bg-slate-50/70 focus:bg-white px-4 py-3 pr-11 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+            />
+            <button id="btnPasteUrl" type="button" title="Tempel dari clipboard" class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition">
+              <i data-lucide="clipboard-paste" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Normalized URL feedback & Quick Presets -->
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div id="urlStatus" class="flex items-center gap-1.5 text-emerald-700 font-medium min-w-0 truncate">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5 shrink-0"></i>
+              <span id="urlStatusText" class="truncate">URL valid siap di-scan</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-slate-400">Contoh:</span>
+              <button type="button" data-preset="https://www.google.com" class="preset-btn px-2 py-1 rounded-md bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition">Google</button>
+              <button type="button" data-preset="https://id.wikipedia.org" class="preset-btn px-2 py-1 rounded-md bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition">Wikipedia</button>
+              <button type="button" data-preset="https://www.youtube.com" class="preset-btn px-2 py-1 rounded-md bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition">YouTube</button>
+            </div>
+          </div>
+
+          <!-- Optional Caption -->
+          <div class="pt-2 border-t border-slate-100">
+            <label for="captionInput" class="block text-xs font-medium text-slate-600 mb-1.5">
+              Label Teks di Bawah Kode (Opsional)
+            </label>
+            <input
+              id="captionInput"
+              type="text"
+              value=""
+              maxlength="60"
+              placeholder="Misal: Scan untuk buka menu / website kami"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
+          </div>
+        </div>
+
+        <!-- Format Switcher -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="scan-line" class="w-4 h-4 text-blue-600"></i>
+              Jenis Kode
+            </h2>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="tablist">
+            <button
+              id="tabQr"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              class="mode-btn text-left p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/60 transition flex items-start gap-3"
+            >
+              <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="qr-code" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm font-semibold text-slate-900">QR Code (2D)</span>
+                  <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Kamera HP</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-0.5">Langsung terbaca kamera bawaan Android &amp; iPhone.</p>
+              </div>
+            </button>
+
+            <button
+              id="tabBarcode"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              class="mode-btn text-left p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white transition flex items-start gap-3"
+            >
+              <div class="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                <i data-lucide="barcode" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm font-semibold text-slate-900">Barcode 1D</span>
+                  <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">Code 128</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Garis vertikal untuk aplikasi scanner barcode.</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Customization Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-5">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="sliders-horizontal" class="w-4 h-4 text-blue-600"></i>
+              Kustomisasi Tampilan
+            </h2>
+            <button id="btnResetStyle" type="button" class="text-xs font-medium text-blue-600 hover:text-blue-700 transition">
+              Reset Default
+            </button>
+          </div>
+
+          <!-- Color Presets & Pickers -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-medium text-slate-600">Warna Kode &amp; Latar</span>
+              <div class="flex items-center gap-1.5">
+                <button type="button" data-fg="#0f172a" data-bg="#ffffff" title="Klasik Hitam-Putih" class="color-preset w-6 h-6 rounded-full border-2 border-slate-300 bg-slate-900 hover:scale-110 transition"></button>
+                <button type="button" data-fg="#1e3a8a" data-bg="#ffffff" title="Biru Navy" class="color-preset w-6 h-6 rounded-full border-2 border-slate-300 bg-blue-900 hover:scale-110 transition"></button>
+                <button type="button" data-fg="#065f46" data-bg="#ffffff" title="Hijau Zamrud" class="color-preset w-6 h-6 rounded-full border-2 border-slate-300 bg-emerald-800 hover:scale-110 transition"></button>
+                <button type="button" data-fg="#581c87" data-bg="#ffffff" title="Ungu Gelap" class="color-preset w-6 h-6 rounded-full border-2 border-slate-300 bg-purple-900 hover:scale-110 transition"></button>
+                <button type="button" data-fg="#991b1b" data-bg="#ffffff" title="Merah Marun" class="color-preset w-6 h-6 rounded-full border-2 border-slate-300 bg-red-800 hover:scale-110 transition"></button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer">
+                <span class="text-xs font-medium text-slate-700">Warna Kode</span>
+                <div class="flex items-center gap-2">
+                  <span id="fgHex" class="text-xs font-mono text-slate-500">#0f172a</span>
+                  <input id="fgColor" type="color" value="#0f172a" class="w-7 h-7 rounded" />
+                </div>
+              </label>
+
+              <label class="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer">
+                <span class="text-xs font-medium text-slate-700">Warna Latar</span>
+                <div class="flex items-center gap-2">
+                  <span id="bgHex" class="text-xs font-mono text-slate-500">#ffffff</span>
+                  <input id="bgColor" type="color" value="#ffffff" class="w-7 h-7 rounded" />
+                </div>
+              </label>
+            </div>
+
+            <!-- Contrast Warning -->
+            <div id="contrastWarning" class="hidden items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+              <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 mt-0.5 text-amber-600"></i>
+              <span>Kontras warna terlalu rendah. Gunakan warna kode gelap di atas latar terang agar kamera HP mudah membaca.</span>
+            </div>
+          </div>
+
+          <!-- Sliders -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <label for="sizeSlider" class="font-medium text-slate-700">Resolusi Unduhan</label>
+                <span id="sizeValue" class="font-mono font-semibold text-blue-600">320 px</span>
+              </div>
+              <input id="sizeSlider" type="range" min="200" max="600" step="20" value="320" class="w-full accent-blue-600 cursor-pointer" />
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <label for="marginSlider" class="font-medium text-slate-700">Batas Tepian (Margin)</label>
+                <span id="marginValue" class="font-mono font-semibold text-blue-600">4</span>
+              </div>
+              <input id="marginSlider" type="range" min="1" max="6" step="1" value="4" class="w-full accent-blue-600 cursor-pointer" />
+            </div>
+          </div>
+
+          <!-- QR Error Correction & Show URL Toggle -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+            <div id="eccContainer">
+              <label for="eccSelect" class="block text-xs font-medium text-slate-700 mb-1.5">Koreksi Kesalahan (ECC)</label>
+              <select id="eccSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="L">L — Ringan (7%, kode lebih renggang)</option>
+                <option value="M" selected>M — Standar (15%, direkomendasikan)</option>
+                <option value="Q">Q — Tinggi (25%, tahan goresan)</option>
+                <option value="H">H — Maksimal (30%, paling kuat)</option>
+              </select>
+            </div>
+
+            <div class="flex items-center justify-between sm:justify-start sm:gap-3 pt-1 sm:pt-5">
+              <label for="showUrlToggle" class="flex items-center gap-2.5 cursor-pointer select-none">
+                <input id="showUrlToggle" type="checkbox" checked class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <span class="text-xs font-medium text-slate-700">Tampilkan URL/label pada gambar</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full-Stack PWA Architecture & Sync Card -->
+        <div class="bg-slate-950 text-slate-100 rounded-2xl border border-slate-800 p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <img
+                src="/icons/icon-192.png"
+                alt="Ikon PWA URL2Code"
+                class="w-11 h-11 rounded-xl object-cover shrink-0 icon-glow"
+              />
+              <div class="min-w-0">
+                <h2 class="text-sm font-semibold text-white truncate">Arsitektur PWA Full-Stack</h2>
+                <p id="backendSubtitle" class="text-xs text-slate-400 truncate">Offline-first PWA · Express REST API + Database JSON</p>
+              </div>
+            </div>
+            <span id="pwaStatusBadge" class="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              Siap Offline
+            </span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5 text-center">
+            <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+              <div class="text-[11px] text-slate-400">Tersimpan</div>
+              <div id="statTotalSaved" class="text-sm font-bold text-white mt-0.5">0</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+              <div class="text-[11px] text-slate-400">Total Scan</div>
+              <div id="statTotalScans" class="text-sm font-bold text-cyan-300 mt-0.5">0</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+              <div class="text-[11px] text-slate-400">Endpoint API</div>
+              <div class="text-xs font-mono font-semibold text-violet-300 mt-1">/api/barcodes</div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button id="btnExportJson" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition">
+              <i data-lucide="download" class="w-3.5 h-3.5 text-cyan-400"></i>
+              Ekspor JSON
+            </button>
+            <label for="importJsonInput" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition cursor-pointer">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-violet-400"></i>
+              Impor JSON
+            </label>
+            <input id="importJsonInput" type="file" accept="application/json,.json" class="hidden" />
+            <button id="btnShowPwaGuide" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition ml-auto">
+              <i data-lucide="server" class="w-3.5 h-3.5 text-emerald-400"></i>
+              Info Server &amp; PWA
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Live Preview & Actions -->
+      <section class="lg:col-span-5 lg:sticky lg:top-24 space-y-5">
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col items-center">
+          <div class="w-full flex items-center justify-between mb-4">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Pratinjau Langsung</span>
+            <span id="readabilityBadge" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Siap di-scan HP
+            </span>
+          </div>
+
+          <!-- Canvas Container -->
+          <div class="w-full flex flex-col items-center justify-center py-5 px-4 rounded-2xl bg-slate-100/80 border border-slate-200/80">
+            <div class="scan-frame inline-block bg-white p-2 rounded-xl canvas-shadow max-w-full">
+              <span class="scan-corner scan-tl"></span>
+              <span class="scan-corner scan-tr"></span>
+              <span class="scan-corner scan-bl"></span>
+              <span class="scan-corner scan-br"></span>
+              <canvas id="codeCanvas" class="block max-w-full h-auto rounded-lg"></canvas>
+            </div>
+
+            <p id="errorBox" class="hidden mt-3 text-xs text-rose-600 text-center font-medium max-w-xs"></p>
+
+            <div class="mt-4 flex items-center gap-2 text-xs text-slate-500">
+              <i data-lucide="smartphone" class="w-4 h-4 text-blue-600 shrink-0"></i>
+              <span id="scanHintText">Arahkan kamera HP langsung ke kode di atas</span>
+            </div>
+          </div>
+
+          <!-- Metadata strip -->
+          <div class="w-full mt-4 grid grid-cols-3 gap-2 text-center">
+            <div class="p-2 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="text-[11px] text-slate-400">Format</div>
+              <div id="metaFormat" class="text-xs font-semibold text-slate-800 mt-0.5">QR v2</div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="text-[11px] text-slate-400">Panjang</div>
+              <div id="metaLength" class="text-xs font-semibold text-slate-800 mt-0.5">22 kar.</div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="text-[11px] text-slate-400">Kontras</div>
+              <div id="metaContrast" class="text-xs font-semibold text-emerald-700 mt-0.5">17.9 : 1</div>
+            </div>
+          </div>
+
+          <!-- Export Buttons -->
+          <div class="w-full mt-5 space-y-2.5">
+            <div class="grid grid-cols-2 gap-2.5">
+              <button id="btnDownloadPng" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                Unduh PNG
+              </button>
+              <button id="btnDownloadSvg" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold shadow-sm transition">
+                <i data-lucide="file-code-2" class="w-4 h-4"></i>
+                Unduh SVG
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <button id="btnCopyImage" type="button" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                Salin Gambar
+              </button>
+              <button id="btnSaveHistory" type="button" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition">
+                <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
+                Simpan Riwayat
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Panel -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <i data-lucide="history" class="w-4 h-4 text-blue-600"></i>
+              Riwayat Tersimpan
+              <span id="historyCount" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">0</span>
+            </h2>
+            <button id="btnClearHistory" type="button" class="hidden text-xs font-medium text-rose-600 hover:text-rose-700 transition">
+              Hapus Semua
+            </button>
+          </div>
+          <div id="historyList" class="space-y-2 max-h-56 overflow-y-auto">
+            <p class="text-xs text-slate-400 text-center py-4">Belum ada riwayat tersimpan. Klik "Simpan Riwayat" atau unduh kode untuk menyimpannya di sini.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Fullscreen Scan Modal -->
+  <div id="fullscreenModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 flex flex-col items-center relative shadow-2xl">
+      <button id="btnCloseModal" type="button" aria-label="Tutup" class="absolute top-4 right-4 p-2 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 class="text-base font-bold text-slate-900 mb-1">Mode Scan Layar Penuh</h3>
+      <p id="modalUrlText" class="text-xs text-slate-500 truncate max-w-full mb-4"></p>
+      <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 max-w-full">
+        <canvas id="modalCanvas" class="block max-w-full h-auto rounded-lg"></canvas>
+      </div>
+      <p class="text-xs text-slate-500 mt-4 text-center">Buka kamera HP Anda dan arahkan ke kode di atas untuk membuka halaman web secara otomatis.</p>
+    </div>
+  </div>
+
+  <!-- PWA Install & Full-Stack Info Modal -->
+  <div id="pwaModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 text-slate-100 border border-slate-700 rounded-3xl max-w-md w-full p-6 relative shadow-2xl space-y-5">
+      <button id="btnClosePwaModal" type="button" aria-label="Tutup" class="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:bg-slate-800 hover:text-white transition">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-4">
+        <img
+          src="/icons/icon-192.png"
+          alt="Ikon Futuristik URL2Code PWA"
+          class="w-16 h-16 rounded-2xl object-cover shrink-0 icon-glow"
+        />
+        <div>
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+            Progressive Web App
+          </span>
+          <h3 class="text-lg font-bold text-white mt-1">URL2Code Full-Stack</h3>
+          <p class="text-xs text-slate-400">Ikon futuristik · Offline-first · REST API</p>
+        </div>
+      </div>
+
+      <div class="space-y-2.5 text-xs text-slate-300 bg-slate-950/70 rounded-2xl p-4 border border-slate-800">
+        <div class="flex items-start gap-2.5">
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400 shrink-0 mt-0.5"></i>
+          <span><strong>Instalasi Layar Utama:</strong> Dilengkapi <code class="text-cyan-300">manifest.webmanifest</code>, ikon 192px &amp; 512px, serta <code class="text-cyan-300">sw.js</code> untuk akses cepat tanpa koneksi.</span>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <i data-lucide="database" class="w-4 h-4 text-violet-400 shrink-0 mt-0.5"></i>
+          <span><strong>Backend Express + API:</strong> Paket ZIP menyertakan <code class="text-violet-300">server.js</code> dengan endpoint <code class="text-violet-300">/api/barcodes</code>, database JSON persisten, dan short-link pelacak scan <code class="text-violet-300">/r/:kode</code>.</span>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <i data-lucide="share-2" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+          <span><strong>Web Share Target:</strong> Setelah diinstal di HP dari server HTTPS, Anda bisa langsung membagikan tautan dari browser ke URL2Code.</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <button id="btnTriggerInstall" type="button" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white text-sm font-semibold transition">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span id="btnTriggerInstallLabel">Instal ke Perangkat Sekarang</span>
+        </button>
+        <p id="installHint" class="text-[11px] text-slate-400 text-center">
+          Jika tombol instal otomatis tidak muncul di browser, gunakan menu <strong>Tambahkan ke Layar Utama</strong> (Android/iOS) atau jalankan paket full-stack ZIP via <code class="text-slate-300">npm start</code>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    // =========================================================================
+    // 1. PURE-JS ISO/IEC 18004 QR CODE ENCODER (Versions 1-14, Byte Mode UTF-8)
+    // =========================================================================
+    const QREncoder = (() => {
+      const ECC_LEVELS = { L: 0, M: 1, Q: 2, H: 3 };
+      const ECC_FORMAT_BITS = [1, 0, 3, 2]; // L=01, M=00, Q=11, H=10
+
+      // ISO/IEC 18004 Table 9 for Versions 1..14
+      const ECC_CODEWORDS_PER_BLOCK = [
+        [-1, 7, 10, 15, 20, 26, 18, 20, 24, 30, 18, 20, 24, 26, 30], // L
+        [-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24], // M
+        [-1, 13, 22, 18, 26, 18, 24, 18, 22, 20, 24, 28, 26, 24, 20], // Q
+        [-1, 17, 28, 22, 16, 22, 28, 26, 26, 24, 28, 24, 28, 22, 24], // H
+      ];
+      const NUM_ERROR_CORRECTION_BLOCKS = [
+        [-1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 4], // L
+        [-1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9], // M
+        [-1, 1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 8, 10, 12, 16], // Q
+        [-1, 1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16], // H
+      ];
+
+      function getNumRawDataModules(ver) {
+        let result = (16 * ver + 128) * ver + 64;
+        if (ver >= 2) {
+          const numAlign = Math.floor(ver / 7) + 2;
+          result -= (25 * numAlign - 10) * numAlign - 55;
+          if (ver >= 7) result -= 36;
+        }
+        return result;
+      }
+
+      function getNumDataCodewords(ver, ecl) {
+        return (
+          Math.floor(getNumRawDataModules(ver) / 8) -
+          ECC_CODEWORDS_PER_BLOCK[ecl][ver] * NUM_ERROR_CORRECTION_BLOCKS[ecl][ver]
+        );
+      }
+
+      function rsMultiply(x, y) {
+        let z = 0;
+        for (let i = 7; i >= 0; i--) {
+          z = (z << 1) ^ ((z >>> 7) * 0x11d);
+          z ^= ((y >>> i) & 1) * x;
+        }
+        return z;
+      }
+
+      function rsComputeDivisor(degree) {
+        const result = new Uint8Array(degree);
+        result[degree - 1] = 1;
+        let root = 1;
+        for (let i = 0; i < degree; i++) {
+          for (let j = 0; j < result.length; j++) {
+            result[j] = rsMultiply(result[j], root);
+            if (j + 1 < result.length) result[j] ^= result[j + 1];
+          }
+          root = rsMultiply(root, 0x02);
+        }
+        return result;
+      }
+
+      function rsComputeRemainder(data, divisor) {
+        const result = new Uint8Array(divisor.length);
+        for (const b of data) {
+          const factor = b ^ result[0];
+          result.copyWithin(0, 1);
+          result[result.length - 1] = 0;
+          for (let i = 0; i < result.length; i++) {
+            result[i] ^= rsMultiply(divisor[i], factor);
+          }
+        }
+        return result;
+      }
+
+      function appendBits(val, len, bb) {
+        for (let i = len - 1; i >= 0; i--) {
+          bb.push((val >>> i) & 1);
+        }
+      }
+
+      function getAlignmentPatternPositions(ver) {
+        if (ver === 1) return [];
+        const numAlign = Math.floor(ver / 7) + 2;
+        const step = ver === 32 ? 26 : Math.ceil((ver * 4 + 4) / (numAlign * 2 - 2)) * 2;
+        const result = [6];
+        for (let pos = ver * 4 + 10; result.length < numAlign; pos -= step) {
+          result.splice(1, 0, pos);
+        }
+        return result;
+      }
+
+      function encode(text, eccLevelStr = 'M') {
+        const ecl = ECC_LEVELS[eccLevelStr] ?? 1;
+        const dataBytes = new TextEncoder().encode(text);
+
+        let version = -1;
+        for (let v = 1; v <= 14; v++) {
+          const ccBits = v <= 9 ? 8 : 16;
+          const totalBitsNeeded = 4 + ccBits + dataBytes.length * 8;
+          const capacityBits = getNumDataCodewords(v, ecl) * 8;
+          if (totalBitsNeeded <= capacityBits) {
+            version = v;
+            break;
+          }
+        }
+        if (version === -1) {
+          throw new Error('URL terlalu panjang untuk QR Code ini (maks. ~450 karakter).');
+        }
+
+        const dataCapacityBits = getNumDataCodewords(version, ecl) * 8;
+        const bb = [];
+        appendBits(0b0100, 4, bb);
+        appendBits(dataBytes.length, version <= 9 ? 8 : 16, bb);
+        for (const b of dataBytes) appendBits(b, 8, bb);
+        appendBits(0, Math.min(4, dataCapacityBits - bb.length), bb);
+        appendBits(0, (8 - (bb.length % 8)) % 8, bb);
+        for (let padByte = 0xec; bb.length < dataCapacityBits; padByte ^= 0xec ^ 0x11) {
+          appendBits(padByte, 8, bb);
+        }
+
+        const dataCodewords = new Uint8Array(bb.length / 8);
+        for (let i = 0; i < bb.length; i++) {
+          dataCodewords[i >>> 3] |= bb[i] << (7 - (i & 7));
+        }
+
+        const numBlocks = NUM_ERROR_CORRECTION_BLOCKS[ecl][version];
+        const blockEccLen = ECC_CODEWORDS_PER_BLOCK[ecl][version];
+        const rawCodewords = Math.floor(getNumRawDataModules(version) / 8);
+        const numShortBlocks = numBlocks - (rawCodewords % numBlocks);
+        const shortBlockLen = Math.floor(rawCodewords / numBlocks);
+
+        const blocks = [];
+        const rsDiv = rsComputeDivisor(blockEccLen);
+        let k = 0;
+        for (let i = 0; i < numBlocks; i++) {
+          const datLen = shortBlockLen - blockEccLen + (i < numShortBlocks ? 0 : 1);
+          const dat = dataCodewords.slice(k, k + datLen);
+          k += datLen;
+          const ecc = rsComputeRemainder(dat, rsDiv);
+          blocks.push({ dat, ecc });
+        }
+
+        const allCodewords = [];
+        const maxDatLen = shortBlockLen - blockEccLen + (numShortBlocks < numBlocks ? 1 : 0);
+        for (let i = 0; i < maxDatLen; i++) {
+          for (let j = 0; j < blocks.length; j++) {
+            if (i < blocks[j].dat.length) allCodewords.push(blocks[j].dat[i]);
+          }
+        }
+        for (let i = 0; i < blockEccLen; i++) {
+          for (let j = 0; j < blocks.length; j++) {
+            allCodewords.push(blocks[j].ecc[i]);
+          }
+        }
+
+        const size = version * 4 + 17;
+        const modules = Array.from({ length: size }, () => new Uint8Array(size));
+        const isFunction = Array.from({ length: size }, () => new Uint8Array(size));
+
+        function setFunctionModule(x, y, isDark) {
+          modules[y][x] = isDark ? 1 : 0;
+          isFunction[y][x] = 1;
+        }
+
+        for (let i = 0; i < size; i++) {
+          setFunctionModule(6, i, i % 2 === 0);
+          setFunctionModule(i, 6, i % 2 === 0);
+        }
+
+        function drawFinderPattern(x, y) {
+          for (let dy = -4; dy <= 4; dy++) {
+            for (let dx = -4; dx <= 4; dx++) {
+              const xx = x + dx;
+              const yy = y + dy;
+              if (0 <= xx && xx < size && 0 <= yy && yy < size) {
+                const dist = Math.max(Math.abs(dx), Math.abs(dy));
+                setFunctionModule(xx, yy, dist !== 2 && dist !== 4);
+              }
+            }
+          }
+        }
+        drawFinderPattern(3, 3);
+        drawFinderPattern(size - 4, 3);
+        drawFinderPattern(3, size - 4);
+
+        const alignPatPos = getAlignmentPatternPositions(version);
+        for (let i = 0; i < alignPatPos.length; i++) {
+          for (let j = 0; j < alignPatPos.length; j++) {
+            if (
+              !(i === 0 && j === 0) &&
+              !(i === 0 && j === alignPatPos.length - 1) &&
+              !(i === alignPatPos.length - 1 && j === 0)
+            ) {
+              const cx = alignPatPos[i];
+              const cy = alignPatPos[j];
+              for (let dy = -2; dy <= 2; dy++) {
+                for (let dx = -2; dx <= 2; dx++) {
+                  setFunctionModule(cx + dx, cy + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+                }
+              }
+            }
+          }
+        }
+
+        function drawFormatBits(mask) {
+          const data = (ECC_FORMAT_BITS[ecl] << 3) | mask;
+          let rem = data;
+          for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+          const bits = ((data << 10) | rem) ^ 0x5412;
+
+          for (let i = 0; i <= 5; i++) setFunctionModule(8, i, ((bits >>> i) & 1) !== 0);
+          setFunctionModule(8, 7, ((bits >>> 6) & 1) !== 0);
+          setFunctionModule(8, 8, ((bits >>> 7) & 1) !== 0);
+          setFunctionModule(7, 8, ((bits >>> 8) & 1) !== 0);
+          for (let i = 9; i < 15; i++) setFunctionModule(14 - i, 8, ((bits >>> i) & 1) !== 0);
+
+          for (let i = 0; i < 8; i++) setFunctionModule(size - 1 - i, 8, ((bits >>> i) & 1) !== 0);
+          for (let i = 8; i < 15; i++) setFunctionModule(8, size - 15 + i, ((bits >>> i) & 1) !== 0);
+          setFunctionModule(8, size - 8, true);
+        }
+        drawFormatBits(0);
+
+        if (version >= 7) {
+          let rem = version;
+          for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1f25);
+          const bits = (version << 12) | rem;
+          for (let i = 0; i < 18; i++) {
+            const bit = ((bits >>> i) & 1) !== 0;
+            const a = size - 11 + (i % 3);
+            const b = Math.floor(i / 3);
+            setFunctionModule(a, b, bit);
+            setFunctionModule(b, a, bit);
+          }
+        }
+
+        let bitIdx = 0;
+        for (let right = size - 1; right >= 1; right -= 2) {
+          if (right === 6) right = 5;
+          for (let vert = 0; vert < size; vert++) {
+            for (let j = 0; j < 2; j++) {
+              const x = right - j;
+              const upward = ((right + 1) & 2) === 0;
+              const y = upward ? size - 1 - vert : vert;
+              if (!isFunction[y][x] && bitIdx < allCodewords.length * 8) {
+                modules[y][x] = (allCodewords[bitIdx >>> 3] >>> (7 - (bitIdx & 7))) & 1;
+                bitIdx++;
+              }
+            }
+          }
+        }
+
+        function applyMask(mask) {
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              if (!isFunction[y][x]) {
+                let invert = false;
+                switch (mask) {
+                  case 0: invert = (x + y) % 2 === 0; break;
+                  case 1: invert = y % 2 === 0; break;
+                  case 2: invert = x % 3 === 0; break;
+                  case 3: invert = (x + y) % 3 === 0; break;
+                  case 4: invert = (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0; break;
+                  case 5: invert = ((x * y) % 2) + ((x * y) % 3) === 0; break;
+                  case 6: invert = (((x * y) % 2) + ((x * y) % 3)) % 2 === 0; break;
+                  case 7: invert = (((x + y) % 2) + ((x * y) % 3)) % 2 === 0; break;
+                }
+                if (invert) modules[y][x] ^= 1;
+              }
+            }
+          }
+        }
+
+        function getPenaltyScore() {
+          let score = 0;
+          for (let y = 0; y < size; y++) {
+            let runColor = modules[y][0];
+            let runLen = 1;
+            for (let x = 1; x < size; x++) {
+              if (modules[y][x] === runColor) {
+                runLen++;
+                if (runLen === 5) score += 3;
+                else if (runLen > 5) score += 1;
+              } else {
+                runColor = modules[y][x];
+                runLen = 1;
+              }
+            }
+          }
+          for (let x = 0; x < size; x++) {
+            let runColor = modules[0][x];
+            let runLen = 1;
+            for (let y = 1; y < size; y++) {
+              if (modules[y][x] === runColor) {
+                runLen++;
+                if (runLen === 5) score += 3;
+                else if (runLen > 5) score += 1;
+              } else {
+                runColor = modules[y][x];
+                runLen = 1;
+              }
+            }
+          }
+          for (let y = 0; y < size - 1; y++) {
+            for (let x = 0; x < size - 1; x++) {
+              const c = modules[y][x];
+              if (c === modules[y][x + 1] && c === modules[y + 1][x] && c === modules[y + 1][x + 1]) {
+                score += 3;
+              }
+            }
+          }
+          let dark = 0;
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) dark += modules[y][x];
+          }
+          const total = size * size;
+          const k = Math.ceil(Math.abs(dark * 20 - total * 10) / total) - 1;
+          score += Math.max(0, k) * 10;
+          return score;
+        }
+
+        let bestMask = 0;
+        let minPenalty = Infinity;
+        for (let m = 0; m < 8; m++) {
+          applyMask(m);
+          drawFormatBits(m);
+          const p = getPenaltyScore();
+          if (p < minPenalty) {
+            minPenalty = p;
+            bestMask = m;
+          }
+          applyMask(m);
+        }
+        applyMask(bestMask);
+        drawFormatBits(bestMask);
+
+        return { version, size, modules };
+      }
+
+      return { encode };
+    })();
+
+    // =========================================================================
+    // 2. PURE-JS CODE 128B 1D BARCODE ENCODER
+    // =========================================================================
+    const Code128Encoder = (() => {
+      const PATTERNS = [
+        '11011001100','11001101100','11001100110','10010011000','10010001100','10001001100','10011001000','10011000100','10001100100','11001001000',
+        '11001000100','11000100100','10110011100','10011011100','10011001110','10111001100','10011101100','10011100110','11001110010','11001011100',
+        '11001001110','11011100100','11001110100','11101101110','11101001100','11100101100','11100100110','11101100100','11100110100','11100110010',
+        '11011011000','11011000110','11000110110','10100011000','10001011000','10001000110','10110001000','10001101000','10001100010','11010001000',
+        '11000101000','11000100010','10110111000','10110001110','10001101110','10111011000','10111000110','10001110110','11101110110','11010001110',
+        '11000101110','11011101000','11011100010','11011101110','11101011000','11101000110','11100010110','11101101000','11101100010','11100011010',
+        '11101111010','11001000010','11110001010','10100110000','10100001100','10010110000','10010000110','10000101100','10000100110','10110010000',
+        '10110000100','10011010000','10011000010','10000110100','10000110010','11000010010','11001010000','11110111010','11000010100','10001111010',
+        '10100111100','10010111100','10010011110','10111100100','10011110100','10011110010','11110100100','11110010100','11110010010','11011011110',
+        '11011110110','11110110110','10101111000','10100011110','10001011110','10111101000','10111100010','11110101000','11110100010','10111011110',
+        '10111101110','11101011110','11110101110','11010000100','11010010000','11010011100','1100011101011'
+      ];
+
+      function encode(text) {
+        if (text.length > 80) {
+          throw new Error('Barcode 1D idealnya maksimal 80 karakter agar tetap terbaca. Gunakan QR Code untuk URL panjang.');
+        }
+        const codes = [104];
+        let checksum = 104;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text.charCodeAt(i);
+          if (ch < 32 || ch > 126) {
+            throw new Error('Barcode 1D Code 128 hanya mendukung karakter ASCII standar. Gunakan QR Code untuk karakter khusus.');
+          }
+          const val = ch - 32;
+          codes.push(val);
+          checksum += val * (i + 1);
+        }
+        codes.push(checksum % 103);
+        codes.push(106);
+        return codes.map((c) => PATTERNS[c]).join('');
+      }
+
+      return { encode };
+    })();
+
+    // =========================================================================
+    // 3. APP STATE & HELPERS
+    // =========================================================================
+    const STORAGE_KEY = 'url_barcode_history_v1';
+    let deferredInstallPrompt = null;
+
+    const state = {
+      rawInput: 'https://www.google.com',
+      caption: '',
+      mode: 'qr',
+      fgColor: '#0f172a',
+      bgColor: '#ffffff',
+      size: 320,
+      margin: 4,
+      ecc: 'M',
+      showUrl: true,
+      history: [],
+      lastEncoded: null,
+      lastSvg: '',
+    };
+
+    const els = {
+      urlInput: document.getElementById('urlInput'),
+      captionInput: document.getElementById('captionInput'),
+      urlStatus: document.getElementById('urlStatus'),
+      urlStatusText: document.getElementById('urlStatusText'),
+      tabQr: document.getElementById('tabQr'),
+      tabBarcode: document.getElementById('tabBarcode'),
+      fgColor: document.getElementById('fgColor'),
+      bgColor: document.getElementById('bgColor'),
+      fgHex: document.getElementById('fgHex'),
+      bgHex: document.getElementById('bgHex'),
+      contrastWarning: document.getElementById('contrastWarning'),
+      sizeSlider: document.getElementById('sizeSlider'),
+      sizeValue: document.getElementById('sizeValue'),
+      marginSlider: document.getElementById('marginSlider'),
+      marginValue: document.getElementById('marginValue'),
+      eccSelect: document.getElementById('eccSelect'),
+      eccContainer: document.getElementById('eccContainer'),
+      showUrlToggle: document.getElementById('showUrlToggle'),
+      codeCanvas: document.getElementById('codeCanvas'),
+      modalCanvas: document.getElementById('modalCanvas'),
+      errorBox: document.getElementById('errorBox'),
+      readabilityBadge: document.getElementById('readabilityBadge'),
+      scanHintText: document.getElementById('scanHintText'),
+      metaFormat: document.getElementById('metaFormat'),
+      metaLength: document.getElementById('metaLength'),
+      metaContrast: document.getElementById('metaContrast'),
+      historyList: document.getElementById('historyList'),
+      historyCount: document.getElementById('historyCount'),
+      btnClearHistory: document.getElementById('btnClearHistory'),
+      fullscreenModal: document.getElementById('fullscreenModal'),
+      modalUrlText: document.getElementById('modalUrlText'),
+      pwaModal: document.getElementById('pwaModal'),
+      toastContainer: document.getElementById('toastContainer'),
+      statTotalSaved: document.getElementById('statTotalSaved'),
+      statTotalScans: document.getElementById('statTotalScans'),
+      pwaStatusBadge: document.getElementById('pwaStatusBadge'),
+      connectionText: document.getElementById('connectionText'),
+      connectionDot: document.getElementById('connectionDot'),
+      appBrandIcon: document.getElementById('appBrandIcon'),
+      faviconLink: document.getElementById('faviconLink'),
+      appleTouchIconLink: document.getElementById('appleTouchIconLink'),
+      pwaManifestLink: document.getElementById('pwaManifestLink'),
+    };
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      const bg = type === 'error' ? 'bg-rose-600' : type === 'success' ? 'bg-emerald-600' : 'bg-slate-900';
+      toast.className = `toast-enter pointer-events-auto px-4 py-2.5 rounded-xl text-white text-xs font-medium shadow-lg ${bg}`;
+      toast.textContent = message;
+      els.toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.2s ease';
+        setTimeout(() => toast.remove(), 220);
+      }, 2400);
+    }
+
+    function normalizeUrl(raw) {
+      const trimmed = raw.trim();
+      if (!trimmed) return { valid: false, url: '', note: 'Masukkan alamat web untuk membuat kode' };
+      if (/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(trimmed)) {
+        try {
+          new URL(trimmed);
+          return { valid: true, url: trimmed, note: 'URL valid siap di-scan kamera HP' };
+        } catch {
+          return { valid: true, url: trimmed, note: 'Teks akan dikodekan apa adanya' };
+        }
+      }
+      if (/^[^\s]+\.[^\s]{2,}$/.test(trimmed)) {
+        const withHttps = 'https://' + trimmed;
+        return { valid: true, url: withHttps, note: 'Otomatis ditambahkan https:// agar terbuka di HP' };
+      }
+      return { valid: true, url: trimmed, note: 'Dikodekan sebagai teks biasa (tambahkan domain agar terbuka sebagai web)' };
+    }
+
+    function hexToLuminance(hex) {
+      const clean = hex.replace('#', '');
+      const r = parseInt(clean.slice(0, 2), 16) / 255;
+      const g = parseInt(clean.slice(2, 4), 16) / 255;
+      const b = parseInt(clean.slice(4, 6), 16) / 255;
+      const [lr, lg, lb] = [r, g, b].map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+      return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+    }
+
+    function getContrastRatio(fg, bg) {
+      const l1 = hexToLuminance(fg);
+      const l2 = hexToLuminance(bg);
+      return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    }
+
+    function escapeXml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function generateShortCode() {
+      const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return code;
+    }
+
+    // =========================================================================
+    // 4. PWA METADATA & ONLINE/OFFLINE BOOTSTRAP
+    // =========================================================================
+    function initPwaMetadata() {
+      const iconSrc = els.appBrandIcon ? els.appBrandIcon.src : '';
+      if (iconSrc) {
+        els.faviconLink.href = iconSrc;
+        els.appleTouchIconLink.href = iconSrc;
+      }
+      try {
+        const manifestObj = {
+          name: 'URL2Code — Konverter URL ke QR & Barcode',
+          short_name: 'URL2Code',
+          description: 'Konverter halaman web menjadi QR Code dan Barcode 1D siap scan kamera HP.',
+          start_url: '.',
+          display: 'standalone',
+          background_color: '#0b1120',
+          theme_color: '#0b1120',
+          icons: iconSrc ? [{ src: iconSrc, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }] : [],
+        };
+        const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+        els.pwaManifestLink.href = URL.createObjectURL(blob);
+      } catch {
+        // Ignore in restricted environments
+      }
+
+      // Check shared URL query parameter (Web Share Target support)
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const sharedUrl = params.get('url') || params.get('text');
+        if (sharedUrl && sharedUrl.trim()) {
+          state.rawInput = sharedUrl.trim();
+          els.urlInput.value = state.rawInput;
+        }
+      } catch {
+        // Ignore
+      }
+
+      function updateOnlineStatus() {
+        const online = navigator.onLine !== false;
+        els.pwaStatusBadge.textContent = online ? 'Siap Offline' : 'Mode Offline';
+        els.connectionDot.className = `w-2 h-2 rounded-full ${online ? 'bg-cyan-400' : 'bg-amber-400'}`;
+        els.connectionText.textContent = online ? 'Mode Lokal PWA' : 'Offline (Cache)';
+      }
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+      updateOnlineStatus();
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+      });
+    }
+
+    // =========================================================================
+    // 5. RENDERING (CANVAS + SVG)
+    // =========================================================================
+    function drawToCanvas(canvas, targetWidth) {
+      const ctx = canvas.getContext('2d');
+      const { valid, url, note } = normalizeUrl(state.rawInput);
+
+      els.urlStatusText.textContent = note;
+      els.urlStatus.className = `flex items-center gap-1.5 font-medium min-w-0 truncate ${
+        valid ? 'text-emerald-700' : 'text-amber-600'
+      }`;
+
+      const ratio = getContrastRatio(state.fgColor, state.bgColor);
+      const fgLum = hexToLuminance(state.fgColor);
+      const bgLum = hexToLuminance(state.bgColor);
+      const lowContrast = ratio < 4.0 || fgLum > bgLum;
+      els.metaContrast.textContent = `${ratio.toFixed(1)} : 1`;
+      els.metaContrast.className = `text-xs font-semibold mt-0.5 ${lowContrast ? 'text-amber-600' : 'text-emerald-700'}`;
+      els.contrastWarning.classList.toggle('hidden', !lowContrast);
+      els.contrastWarning.classList.toggle('flex', lowContrast);
+
+      if (!valid || !url) {
+        canvas.width = targetWidth;
+        canvas.height = targetWidth;
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '500 14px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Ketik alamat web di samping', canvas.width / 2, canvas.height / 2);
+        els.metaFormat.textContent = '-';
+        els.metaLength.textContent = '0 kar.';
+        els.errorBox.classList.add('hidden');
+        state.lastEncoded = null;
+        state.lastSvg = '';
+        return;
+      }
+
+      const labelText = state.showUrl
+        ? (state.caption.trim() || url.replace(/^https?:\/\//, ''))
+        : '';
+      const displayLabel = labelText.length > 42 ? labelText.slice(0, 39) + '...' : labelText;
+      const captionHeight = displayLabel ? Math.round(targetWidth * 0.12) : 0;
+
+      try {
+        els.errorBox.classList.add('hidden');
+        if (state.mode === 'qr') {
+          const qr = QREncoder.encode(url, state.ecc);
+          const totalModules = qr.size + state.margin * 2;
+          const scale = Math.max(2, Math.floor(targetWidth / totalModules));
+          const qrPixelSize = totalModules * scale;
+          const totalHeight = qrPixelSize + captionHeight;
+
+          canvas.width = qrPixelSize;
+          canvas.height = totalHeight;
+
+          ctx.fillStyle = state.bgColor;
+          ctx.fillRect(0, 0, qrPixelSize, totalHeight);
+
+          ctx.fillStyle = state.fgColor;
+          const offset = state.margin * scale;
+          for (let y = 0; y < qr.size; y++) {
+            for (let x = 0; x < qr.size; x++) {
+              if (qr.modules[y][x]) {
+                ctx.fillRect(offset + x * scale, offset + y * scale, scale, scale);
+              }
+            }
+          }
+
+          if (displayLabel) {
+            ctx.fillStyle = state.fgColor;
+            const fontSize = Math.max(11, Math.round(qrPixelSize * 0.042));
+            ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(displayLabel, qrPixelSize / 2, qrPixelSize + captionHeight * 0.42);
+          }
+
+          let rects = '';
+          for (let y = 0; y < qr.size; y++) {
+            for (let x = 0; x < qr.size; x++) {
+              if (qr.modules[y][x]) {
+                rects += `<rect x="${(state.margin + x) * scale}" y="${(state.margin + y) * scale}" width="${scale}" height="${scale}" fill="${state.fgColor}"/>`;
+              }
+            }
+          }
+          const svgText = displayLabel
+            ? `<text x="${qrPixelSize / 2}" y="${qrPixelSize + captionHeight * 0.45}" fill="${state.fgColor}" font-family="Inter, Arial, sans-serif" font-size="${Math.max(11, Math.round(qrPixelSize * 0.042))}" font-weight="600" text-anchor="middle" dominant-baseline="middle">${escapeXml(displayLabel)}</text>`
+            : '';
+          state.lastSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${qrPixelSize} ${totalHeight}" width="${qrPixelSize}" height="${totalHeight}"><rect width="100%" height="100%" fill="${state.bgColor}"/>${rects}${svgText}</svg>`;
+
+          els.metaFormat.textContent = `QR v${qr.version} (${state.ecc})`;
+          els.metaLength.textContent = `${url.length} kar.`;
+          els.scanHintText.textContent = 'Arahkan kamera HP langsung ke QR Code di atas';
+          els.readabilityBadge.innerHTML = lowContrast
+            ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Kontras rendah'
+            : '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Siap di-scan HP';
+          els.readabilityBadge.className = `inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${
+            lowContrast
+              ? 'bg-amber-50 text-amber-700 border-amber-200'
+              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          }`;
+          state.lastEncoded = { url, mode: 'qr' };
+        } else {
+          const bits = Code128Encoder.encode(url);
+          const quietModules = state.margin * 3;
+          const totalModules = bits.length + quietModules * 2;
+          const barWidth = Math.max(1.5, targetWidth / totalModules);
+          const width = Math.round(totalModules * barWidth);
+          const barHeight = Math.round(Math.max(96, targetWidth * 0.34));
+          const topPad = Math.round(state.margin * 4);
+          const bottomPad = displayLabel ? Math.round(barHeight * 0.32) : topPad;
+          const totalHeight = topPad + barHeight + bottomPad;
+
+          canvas.width = width;
+          canvas.height = totalHeight;
+
+          ctx.fillStyle = state.bgColor;
+          ctx.fillRect(0, 0, width, totalHeight);
+
+          ctx.fillStyle = state.fgColor;
+          let svgRects = '';
+          const startX = quietModules * barWidth;
+          for (let i = 0; i < bits.length; i++) {
+            if (bits[i] === '1') {
+              const x = startX + i * barWidth;
+              ctx.fillRect(x, topPad, Math.ceil(barWidth), barHeight);
+              svgRects += `<rect x="${x.toFixed(2)}" y="${topPad}" width="${barWidth.toFixed(2)}" height="${barHeight}" fill="${state.fgColor}"/>`;
+            }
+          }
+
+          if (displayLabel) {
+            ctx.fillStyle = state.fgColor;
+            const fontSize = Math.max(11, Math.min(16, Math.round(width * 0.036)));
+            ctx.font = `600 ${fontSize}px Inter, monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(displayLabel, width / 2, topPad + barHeight + bottomPad * 0.52);
+          }
+
+          const svgText = displayLabel
+            ? `<text x="${width / 2}" y="${topPad + barHeight + bottomPad * 0.52}" fill="${state.fgColor}" font-family="Inter, monospace" font-size="${Math.max(11, Math.min(16, Math.round(width * 0.036)))}" font-weight="600" text-anchor="middle" dominant-baseline="middle">${escapeXml(displayLabel)}</text>`
+            : '';
+          state.lastSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${width}" height="${totalHeight}"><rect width="100%" height="100%" fill="${state.bgColor}"/>${svgRects}${svgText}</svg>`;
+
+          els.metaFormat.textContent = 'Code 128B';
+          els.metaLength.textContent = `${url.length} kar.`;
+          els.scanHintText.textContent = 'Gunakan aplikasi scanner barcode 1D untuk membaca kode ini';
+          els.readabilityBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Mode Barcode 1D';
+          els.readabilityBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200';
+          state.lastEncoded = { url, mode: 'barcode' };
+        }
+      } catch (err) {
+        els.errorBox.textContent = err.message;
+        els.errorBox.classList.remove('hidden');
+        state.lastEncoded = null;
+        state.lastSvg = '';
+      }
+    }
+
+    function renderAll() {
+      const previewWidth = state.mode === 'qr' ? 280 : 340;
+      drawToCanvas(els.codeCanvas, previewWidth);
+      if (!els.fullscreenModal.classList.contains('hidden')) {
+        drawToCanvas(els.modalCanvas, 360);
+        const { url } = normalizeUrl(state.rawInput);
+        els.modalUrlText.textContent = url;
+      }
+    }
+
+    // =========================================================================
+    // 6. HISTORY & FULL-STACK DATA LAYER (LOCALSTORAGE + JSON EXPORT/IMPORT)
+    // =========================================================================
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) state.history = parsed;
+        }
+      } catch {
+        state.history = [];
+      }
+      renderHistory();
+    }
+
+    function persistHistory() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history));
+      } catch {
+        // Ignore storage restrictions
+      }
+    }
+
+    function addToHistory(silent = false) {
+      if (!state.lastEncoded) {
+        if (!silent) showToast('Masukkan URL yang valid terlebih dahulu.', 'error');
+        return;
+      }
+      const { url, mode } = state.lastEncoded;
+      const caption = state.caption.trim();
+      const existingIdx = state.history.findIndex((item) => item.url === url && item.mode === mode);
+      let prevScans = 0;
+      let shortCode = generateShortCode();
+      if (existingIdx !== -1) {
+        prevScans = state.history[existingIdx].scans || 0;
+        shortCode = state.history[existingIdx].shortCode || shortCode;
+        state.history.splice(existingIdx, 1);
+      }
+
+      state.history.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        url,
+        mode,
+        caption,
+        shortCode,
+        scans: prevScans,
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      });
+      if (state.history.length > 25) state.history.pop();
+      persistHistory();
+      renderHistory();
+      if (!silent) showToast('Tersimpan ke riwayat.', 'success');
+    }
+
+    function renderHistory() {
+      els.historyCount.textContent = String(state.history.length);
+      els.statTotalSaved.textContent = String(state.history.length);
+      const totalScans = state.history.reduce((sum, item) => sum + (Number(item.scans) || 0), 0);
+      els.statTotalScans.textContent = String(totalScans);
+      els.btnClearHistory.classList.toggle('hidden', state.history.length === 0);
+
+      if (state.history.length === 0) {
+        els.historyList.innerHTML =
+          '<p class="text-xs text-slate-400 text-center py-4">Belum ada riwayat tersimpan. Klik "Simpan Riwayat" atau unduh kode untuk menyimpannya di sini.</p>';
+        return;
+      }
+
+      els.historyList.innerHTML = state.history
+        .map(
+          (item) => `
+          <div class="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-blue-50/60 hover:border-blue-200 transition">
+            <button type="button" data-load-id="${item.id}" class="flex-1 text-left min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                  item.mode === 'qr' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-700'
+                }">${item.mode === 'qr' ? 'QR' : '1D'}</span>
+                <span class="text-xs font-medium text-slate-800 truncate">${escapeXml(item.url.replace(/^https?:\/\//, ''))}</span>
+              </div>
+              <div class="text-[11px] text-slate-400 mt-0.5 truncate">
+                ${item.shortCode ? '/r/' + escapeXml(item.shortCode) + ' · ' : ''}${item.scans || 0} scan · ${item.caption ? escapeXml(item.caption) + ' · ' : ''}${item.time}
+              </div>
+            </button>
+            <button type="button" data-del-id="${item.id}" title="Hapus" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `
+        )
+        .join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 7. EXPORT HELPERS
+    // =========================================================================
+    function createExportCanvas() {
+      const offscreen = document.createElement('canvas');
+      drawToCanvas(offscreen, state.size);
+      return offscreen;
+    }
+
+    function downloadPng() {
+      if (!state.lastEncoded) {
+        showToast('Tidak ada kode valid untuk diunduh.', 'error');
+        return;
+      }
+      const offscreen = createExportCanvas();
+      const link = document.createElement('a');
+      const slug = state.lastEncoded.url.replace(/^https?:\/\//, '').replace(/[^a-zA-Z0-9]+/g, '-').slice(0, 28) || 'barcode';
+      link.download = `${state.mode}-${slug}.png`;
+      link.href = offscreen.toDataURL('image/png');
+      link.click();
+      addToHistory(true);
+      showToast('File PNG berhasil diunduh.', 'success');
+    }
+
+    function downloadSvg() {
+      if (!state.lastEncoded || !state.lastSvg) {
+        showToast('Tidak ada kode valid untuk diunduh.', 'error');
+        return;
+      }
+      createExportCanvas();
+      const blob = new Blob([state.lastSvg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const slug = state.lastEncoded.url.replace(/^https?:\/\//, '').replace(/[^a-zA-Z0-9]+/g, '-').slice(0, 28) || 'barcode';
+      link.download = `${state.mode}-${slug}.svg`;
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      addToHistory(true);
+      showToast('File SVG berhasil diunduh.', 'success');
+    }
+
+    function exportHistoryJson() {
+      const payload = {
+        app: 'URL2Code PWA Full-Stack',
+        exportedAt: new Date().toISOString(),
+        items: state.history,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = 'url2code-riwayat.json';
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Data riwayat diekspor ke JSON.', 'success');
+    }
+
+    function importHistoryJson(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result));
+          const items = Array.isArray(parsed) ? parsed : parsed.items;
+          if (!Array.isArray(items)) throw new Error('Format JSON tidak valid.');
+          const validItems = items
+            .filter((it) => it && typeof it.url === 'string' && it.url.trim())
+            .map((it) => ({
+              id: it.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+              url: it.url.trim(),
+              mode: it.mode === 'barcode' ? 'barcode' : 'qr',
+              caption: typeof it.caption === 'string' ? it.caption : '',
+              shortCode: it.shortCode || generateShortCode(),
+              scans: Number(it.scans) || 0,
+              time: it.time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            }));
+          state.history = validItems.slice(0, 25);
+          persistHistory();
+          renderHistory();
+          showToast(`${validItems.length} item berhasil diimpor.`, 'success');
+        } catch {
+          showToast('File JSON tidak valid.', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    async function copyImageToClipboard() {
+      if (!state.lastEncoded) {
+        showToast('Tidak ada kode valid untuk disalin.', 'error');
+        return;
+      }
+      const offscreen = createExportCanvas();
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          showToast('Gambar berhasil disalin ke clipboard.', 'success');
+          return;
+        }
+      } catch {
+        // Fall through
+      }
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = state.lastEncoded.url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        showToast('Browser membatasi salin gambar; URL disalin sebagai gantinya.', 'info');
+      } catch {
+        showToast('Gunakan tombol Unduh PNG untuk menyimpan gambar.', 'error');
+      }
+    }
+
+    // =========================================================================
+    // 8. EVENT LISTENERS
+    // =========================================================================
+    function setMode(mode) {
+      state.mode = mode;
+      const isQr = mode === 'qr';
+
+      els.tabQr.setAttribute('aria-selected', String(isQr));
+      els.tabBarcode.setAttribute('aria-selected', String(!isQr));
+
+      els.tabQr.className = isQr
+        ? 'mode-btn text-left p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/60 transition flex items-start gap-3'
+        : 'mode-btn text-left p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white transition flex items-start gap-3';
+      els.tabBarcode.className = !isQr
+        ? 'mode-btn text-left p-3.5 rounded-xl border-2 border-blue-600 bg-blue-50/60 transition flex items-start gap-3'
+        : 'mode-btn text-left p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white transition flex items-start gap-3';
+
+      els.eccContainer.classList.toggle('opacity-40', !isQr);
+      els.eccSelect.disabled = !isQr;
+      renderAll();
+    }
+
+    els.urlInput.addEventListener('input', (e) => {
+      state.rawInput = e.target.value;
+      renderAll();
+    });
+
+    els.captionInput.addEventListener('input', (e) => {
+      state.caption = e.target.value;
+      renderAll();
+    });
+
+    document.getElementById('btnClearUrl').addEventListener('click', () => {
+      state.rawInput = '';
+      els.urlInput.value = '';
+      els.urlInput.focus();
+      renderAll();
+    });
+
+    document.getElementById('btnPasteUrl').addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          state.rawInput = text;
+          els.urlInput.value = text;
+          renderAll();
+          showToast('Tautan ditempel dari clipboard.', 'success');
+        }
+      } catch {
+        els.urlInput.focus();
+        showToast('Tekan Ctrl+V / Cmd+V di kolom input untuk menempel.', 'info');
+      }
+    });
+
+    document.querySelectorAll('.preset-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const url = btn.getAttribute('data-preset');
+        state.rawInput = url;
+        els.urlInput.value = url;
+        renderAll();
+      });
+    });
+
+    els.tabQr.addEventListener('click', () => setMode('qr'));
+    els.tabBarcode.addEventListener('click', () => setMode('barcode'));
+
+    els.fgColor.addEventListener('input', (e) => {
+      state.fgColor = e.target.value;
+      els.fgHex.textContent = state.fgColor;
+      renderAll();
+    });
+
+    els.bgColor.addEventListener('input', (e) => {
+      state.bgColor = e.target.value;
+      els.bgHex.textContent = state.bgColor;
+      renderAll();
+    });
+
+    document.querySelectorAll('.color-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.fgColor = btn.getAttribute('data-fg');
+        state.bgColor = btn.getAttribute('data-bg');
+        els.fgColor.value = state.fgColor;
+        els.bgColor.value = state.bgColor;
+        els.fgHex.textContent = state.fgColor;
+        els.bgHex.textContent = state.bgColor;
+        renderAll();
+      });
+    });
+
+    document.getElementById('btnResetStyle').addEventListener('click', () => {
+      state.fgColor = '#0f172a';
+      state.bgColor = '#ffffff';
+      state.size = 320;
+      state.margin = 4;
+      state.ecc = 'M';
+      state.showUrl = true;
+      els.fgColor.value = state.fgColor;
+      els.bgColor.value = state.bgColor;
+      els.fgHex.textContent = state.fgColor;
+      els.bgHex.textContent = state.bgColor;
+      els.sizeSlider.value = String(state.size);
+      els.sizeValue.textContent = `${state.size} px`;
+      els.marginSlider.value = String(state.margin);
+      els.marginValue.textContent = String(state.margin);
+      els.eccSelect.value = state.ecc;
+      els.showUrlToggle.checked = true;
+      renderAll();
+      showToast('Tampilan dikembalikan ke default.', 'info');
+    });
+
+    els.sizeSlider.addEventListener('input', (e) => {
+      state.size = Number(e.target.value);
+      els.sizeValue.textContent = `${state.size} px`;
+    });
+
+    els.marginSlider.addEventListener('input', (e) => {
+      state.margin = Number(e.target.value);
+      els.marginValue.textContent = String(state.margin);
+      renderAll();
+    });
+
+    els.eccSelect.addEventListener('change', (e) => {
+      state.ecc = e.target.value;
+      renderAll();
+    });
+
+    els.showUrlToggle.addEventListener('change', (e) => {
+      state.showUrl = e.target.checked;
+      renderAll();
+    });
+
+    document.getElementById('btnDownloadPng').addEventListener('click', downloadPng);
+    document.getElementById('btnDownloadSvg').addEventListener('click', downloadSvg);
+    document.getElementById('btnCopyImage').addEventListener('click', copyImageToClipboard);
+    document.getElementById('btnSaveHistory').addEventListener('click', () => addToHistory(false));
+    document.getElementById('btnExportJson').addEventListener('click', exportHistoryJson);
+    document.getElementById('importJsonInput').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      importHistoryJson(file);
+      e.target.value = '';
+    });
+
+    els.btnClearHistory.addEventListener('click', () => {
+      state.history = [];
+      persistHistory();
+      renderHistory();
+      showToast('Semua riwayat dihapus.', 'info');
+    });
+
+    els.historyList.addEventListener('click', (e) => {
+      const delBtn = e.target.closest('[data-del-id]');
+      if (delBtn) {
+        const id = delBtn.getAttribute('data-del-id');
+        state.history = state.history.filter((item) => item.id !== id);
+        persistHistory();
+        renderHistory();
+        return;
+      }
+      const loadBtn = e.target.closest('[data-load-id]');
+      if (loadBtn) {
+        const id = loadBtn.getAttribute('data-load-id');
+        const item = state.history.find((h) => h.id === id);
+        if (item) {
+          state.rawInput = item.url;
+          state.caption = item.caption || '';
+          els.urlInput.value = item.url;
+          els.captionInput.value = state.caption;
+          setMode(item.mode);
+          showToast('Tautan dimuat dari riwayat.', 'info');
+        }
+      }
+    });
+
+    // Fullscreen modal
+    function openModal() {
+      if (!state.lastEncoded) {
+        showToast('Masukkan URL valid terlebih dahulu.', 'error');
+        return;
+      }
+      els.fullscreenModal.classList.remove('hidden');
+      els.fullscreenModal.classList.add('flex');
+      els.modalUrlText.textContent = state.lastEncoded.url;
+      drawToCanvas(els.modalCanvas, 360);
+    }
+
+    function closeModal() {
+      els.fullscreenModal.classList.add('hidden');
+      els.fullscreenModal.classList.remove('flex');
+    }
+
+    // PWA Modal
+    function openPwaModal() {
+      els.pwaModal.classList.remove('hidden');
+      els.pwaModal.classList.add('flex');
+    }
+
+    function closePwaModal() {
+      els.pwaModal.classList.add('hidden');
+      els.pwaModal.classList.remove('flex');
+    }
+
+    document.getElementById('btnFullscreen').addEventListener('click', openModal);
+    document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+    document.getElementById('btnInstallPwa').addEventListener('click', openPwaModal);
+    document.getElementById('btnShowPwaGuide').addEventListener('click', openPwaModal);
+    document.getElementById('btnClosePwaModal').addEventListener('click', closePwaModal);
+
+    document.getElementById('btnTriggerInstall').addEventListener('click', async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        if (choice && choice.outcome === 'accepted') {
+          showToast('Aplikasi berhasil diinstal!', 'success');
+          closePwaModal();
+        }
+      } else {
+        showToast('Jalankan paket full-stack ZIP via server HTTPS/lokal atau pilih "Tambahkan ke Layar Utama" di browser HP.', 'info');
+      }
+    });
+
+    els.fullscreenModal.addEventListener('click', (e) => {
+      if (e.target === els.fullscreenModal) closeModal();
+    });
+    els.pwaModal.addEventListener('click', (e) => {
+      if (e.target === els.pwaModal) closePwaModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!els.fullscreenModal.classList.contains('hidden')) closeModal();
+        if (!els.pwaModal.classList.contains('hidden')) closePwaModal();
+      }
+    });
+
+    // Init
+    if (window.lucide) lucide.createIcons();
+    initPwaMetadata();
+    loadHistory();
+    renderAll();
+  </script>
+
+  <script>
+    // Full-Stack PWA Server Integration (runs automatically when hosted via server.js)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+    (async function syncWithBackend() {
+      try {
+        const res = await fetch('/api/barcodes');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data.items)) {
+          state.history = data.items;
+          renderHistory();
+          const connText = document.getElementById('connectionText');
+          const connDot = document.getElementById('connectionDot');
+          if (connText) connText.textContent = 'Server API Aktif';
+          if (connDot) connDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        }
+      } catch {
+        // Offline fallback uses localStorage automatically
+      }
+    })();
+
+    const origBtnSave = document.getElementById('btnSaveHistory');
+    if (origBtnSave) {
+      origBtnSave.addEventListener('click', () => {
+        if (!state.lastEncoded) return;
+        fetch('/api/barcodes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: state.lastEncoded.url,
+            mode: state.lastEncoded.mode,
+            caption: state.caption.trim()
+          })
+        }).catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
